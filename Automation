@@ -1,0 +1,11 @@
+import schedule
+import time
+
+#### Put the data cleaning script here
+
+schedule.every().day.at("08:00").do(THE_DATA_CLEANING_FUNCTION_NAME)
+schedule.every().day.at("20:00").do(THE_DATA_CLEANING_FUNCTION_NAME)
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)
