@@ -135,7 +135,7 @@ schedule.every().day.at("07:00").do(phase_1())
 schedule.every().day.at("07:00").do(phase_2()) 
 
 schedule.every().day.at("19:00").do(phase_1()) 
-schedule.every().day.at("19:00").do(phase_2)) 
+schedule.every().day.at("19:00").do(phase_2()) 
 
 while True:
     schedule.run_pending()
