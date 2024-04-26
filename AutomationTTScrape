@@ -9,3 +9,20 @@ def scrape_phase1():
 
     for profile_url in profile_urls:
         profile_data = get_profile_data(profile_url)
+
+
+# pip install schedule
+
+import schedule
+import time
+import subprocess
+
+def run_scraper():
+    subprocess.run(["python", "your_scraper_script.py"])  # Replace "your_scraper_script.py" with the name of your scraping script
+
+schedule.every().day.at("07:00").do(run_scraper)  # Schedule scraping at 7:00 AM
+schedule.every().day.at("19:00").do(run_scraper)  # Schedule scraping at 7:00 PM
+
+while True:
+    schedule.run_pending()
+    time.sleep(60)
