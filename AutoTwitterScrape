@@ -1,0 +1,362 @@
+import time
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.service import Service
+from webdriver_manager.firefox import GeckoDriverManager
+import argparse
+import json
+import re
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from selenium.webdriver.common.keys import Keys
+import schedule
+
+
+#PHASE 1
+def twitter_phase1:
+    def scrape_profile(driver, profile_url):
+        try:
+            # Navigate to the Twitter profile page
+            driver.get(profile_url)
+            time.sleep(5)  # Allow time for the page to load
+
+            # Initialize dictionary to store profile data
+            profile_data = {
+                "profile_url": profile_url,
+                "name": "",
+                "id": "",
+                "bio": "",
+                "followers_count": "",
+                "following_count": "",
+                "verified": False,
+                "link": "",
+                "joined_date": "",
+                "location": "",
+                "category": "",
+                "tweet_links": ""
+            }
+
+            print(profile_url)
+            wait = WebDriverWait(driver, 10)
+            try:
+                name_element = driver.find_element(By.XPATH, '//div[@data-testid="UserName"]')
+                split_data = name_element.text.split('\n')
+                profile_data["name"] = split_data[0]
+                profile_data["id"] = split_data[1]  
+                print(split_data[0])
+                print(split_data[1])
+            except Exception as e:
+                print(f"Error retrieving UserName for {profile_url}: {e}")
+
+            # Scrape the bio
+            try:
+                bio_element = driver.find_element(By.XPATH, '//div[@data-testid="UserDescription"]')
+                profile_data["bio"] = bio_element.text
+                print(bio_element.text)
+            except Exception as e:
+                print(f"Error retrieving bio for {profile_url}: {e}")
+            
+            # Scrape the followers count
+            try:
+                followers_element = driver.find_element(By.XPATH, '//a[contains(@href,"/verified_followers")]//span[contains(@class,"r-poiln3")]')
+                profile_data["followers_count"] = followers_element.text
+                print(followers_element.text)
+            except Exception as e:
+                print(f"Error retrieving followers count for {profile_url}: {e}")
+
+            # Scrape the following count
+            try:
+                following_element = driver.find_element(By.XPATH, '//a[contains(@href,"/following")]')
+                profile_data["following_count"] = following_element.text
+                print(following_element.text)
+            except Exception as e:
+                print(f"Error retrieving following count for {profile_url}: {e}")
+            
+            # Scrape the joined date
+            try:
+                joined_date_element = driver.find_element(By.XPATH, '//span[contains(text(), "Joined")]')
+                joined_date_text = joined_date_element.text
+                profile_data["joined_date"] = joined_date_text.split(' ')[-2:]  # Extract the month and year
+                print(f"Joined Date Element Text: {joined_date_text}")
+                print(f"Joined Date: {profile_data['joined_date']}")
+            except Exception as e:
+                print(f"Error retrieving joined date for {profile_url}: {e}")
+
+
+            # Scrape the location
+            try:
+                location_element = driver.find_element(By.XPATH, '//span[@data-testid="UserLocation"]//span[contains(@class, "css-1qaijid")]')
+                location_text = location_element.text
+                profile_data["location"] = location_text
+                if location_text:
+                    print(f"Location Element Text: {location_text}")
+                    print(f"Location: {profile_data['location']}")
+                else:
+                    print("Location is empty.")
+            except Exception as e:
+                print(f"Error retrieving location for {profile_url}: {e}")
+            
+            
+            try:
+                verification_details = wait.until(EC.presence_of_element_located(
+            (By.XPATH, "//div[contains(@aria-label, 'Provides details about verified accounts.')]")))
+                
+                # Check if the element is successfully found
+                if verification_details:
+                    profile_data["verified"] = True  # Element found - account is verified
+                    print("Account is verified.")
+                else:
+                    profile_data["verified"] = False
+                    print("Account is not verified.")
+
+            except Exception as e:
+                print("Account is not verified. Error:", str(e))
+            
+            # Scrape the link
+            try:
+                link_element = driver.find_element(By.XPATH, '//a[contains(@href,"t.co")]')
+                profile_data["link"] = link_element.get_attribute('href')
+                print(profile_data["link"])
+            except Exception as e:
+                print(f"Error retrieving link for {profile_url}: {e}")
+            
+            try:
+                category_element = wait.until(EC.visibility_of_element_located(
+                    (By.CSS_SELECTOR, "span[data-testid='UserProfessionalCategory'] > span[role='button'] > span")))
+
+                professional_category = category_element.text
+                profile_data["category"] = professional_category
+                print("Professional Category:", professional_category)
+            except Exception as e:
+                print("Error while scraping professional category:", str(e))
+            
+            try:
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(5)
+                
+                tweets_elements = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]//a[@role="link" and @href]')
+                tweet_links = [elem.get_attribute('href') for elem in tweets_elements if '/status/' in elem.get_attribute('href')]
+                filtered_links = [link for link in tweet_links if re.match(r"https://twitter\.com/[^/]+/status/\d+$", link)]
+
+                profile_data['tweet_links'] = filtered_links
+                print(filtered_links)
+            except Exception as e:
+                print(f"Error retrieving tweets for {profile_url}: {e}")
+
+            return profile_data
+        
+        except Exception as e:
+            print(f"Error fetching profile for {profile_url}: {e}")
+            return None
+
+    # Main script
+    if __name__ == "__main__":
+        parser = argparse.ArgumentParser(description='Scrape Twitter profiles listed in a CSV file.')
+        parser.add_argument('FileName', metavar='filename', type=str, help='the CSV file containing Twitter profile URLs')
+        args = parser.parse_args()
+
+        PATH = r"/Users/guolingjun/Desktop/HYP/geckodriver"
+        driver = webdriver.Firefox(executable_path = PATH)
+        #driver = webdriver.Firefox()
+
+        # Go to Twitter's login page
+        driver.get("https://twitter.com/login")
+        time.sleep(3)
+
+        username_input = driver.find_element(By.NAME, 'text')
+        username_input.send_keys('123')
+        
+        next_button = driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]/ancestor::div[@role='button']")
+        next_button.click()
+
+        # Wait for the password input field to appear
+        time.sleep(3)
+
+        # Find the password input field and enter your password
+        password_input = driver.find_element(By.NAME, 'password')
+        password_input.send_keys('123')
+
+        # Find and click the 'Log in' button
+        login_button = driver.find_element(By.XPATH, "//span[contains(text(), 'Log in')]/ancestor::div[@role='button']")
+        login_button.click()
+
+#PHASE 2
+
+def twitter_phase2:
+    def scrape_tweet_details(driver, tweet_data):
+        wait = WebDriverWait(driver, 10)
+        scraped_tweet_data = []
+
+        for entry in tweet_data:
+            profile_name = entry["name"]
+            for tweet_url in entry["tweet_links"]:
+                driver.get(tweet_url)
+                time.sleep(5)
+
+                tweet_details = {
+                    "profile_name": profile_name,
+                    "tweet_url": tweet_url,
+                    "captions": "N/A",
+                    "time": "N/A",
+                    "reply_count": 0,
+                    "repost_count": 0,
+                    "like_count": 0,
+                    "bookmark_count": 0,
+                    "comments": "N/A",
+                    "views_count": "N/A"
+                }
+                print(tweet_url)
+                try:
+                    caption_element = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div[lang]")))
+                    tweet_details['captions'] = caption_element.text
+                    print(caption_element.text)            
+                except Exception as e:
+                    print(f"Error retrieving captions for {tweet_url}: {e}")
+
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+
+                # Scroll down a bit: adjust the value "500" based on how much you need to scroll
+                driver.execute_script("window.scrollBy(0, 500);")
+
+                # Wait for the dynamic content to load after scrolling
+                time.sleep(5)
+
+                try:
+                    time_element = driver.find_element(By.TAG_NAME, 'time')
+                    time_text = time_element.text
+                    tweet_details['time'] = time_text
+                    print(time_text)            
+                except Exception as e:
+                    print(f"Error retrieving time for {tweet_url}: {e}")
+
+
+                try:
+                    details_div = wait.until(EC.presence_of_element_located(
+                        (By.XPATH, "//div[contains(@aria-label, 'replies') and @role='group']")))
+
+                    interaction_details = details_div.get_attribute('aria-label')
+
+                    replies_count = re.search(r'(\d+) replies', interaction_details)
+                    reposts_count = re.search(r'(\d+) reposts', interaction_details)
+                    likes_count = re.search(r'(\d+) likes', interaction_details)
+                    bookmarks_count = re.search(r'(\d+) bookmarks', interaction_details)
+
+                    replies = int(replies_count.group(1)) if replies_count else 0
+                    reposts = int(reposts_count.group(1)) if reposts_count else 0
+                    likes = int(likes_count.group(1)) if likes_count else 0
+                    bookmarks = int(bookmarks_count.group(1)) if bookmarks_count else 0
+
+                    tweet_details['reply_count'] = replies
+                    tweet_details['repost_count'] = reposts
+                    tweet_details['like_count'] = likes
+                    tweet_details['bookmark_count'] = bookmarks
+
+                    print(f"Replies: {replies}, Reposts: {reposts}, Likes: {likes}, Bookmarks: {bookmarks}")
+
+                except Exception as e:
+                    print("Error locating the element:", e)
+
+                try:
+                    # Wait until the comment section is visible
+                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='reply']")))
+
+                    # Scroll to load comments - you may need to adjust the range and sleep time based on the number of comments
+                    for _ in range(2):
+                        driver.find_element_by_tag_name('body').send_keys(Keys.END)
+                        time.sleep(2)  # Wait for comments to load, adjust timing as needed
+
+                    # Locate all comments
+                    comments_elements = driver.find_elements(By.XPATH, "//div[@data-testid='tweetText']")
+                    comments = [comment.text for comment in comments_elements[1:]]
+                    tweet_details['comments'] = comments
+
+                    for comment in comments:
+                        print(comment)
+
+                except Exception as e:
+                    print("Error while scraping comments:", e)
+
+
+                try:
+                    # Locate the element by its aria-label that includes views information
+                    views_div = wait.until(EC.visibility_of_element_located(
+                        (By.XPATH, "//div[contains(@aria-label, 'views')]")))
+
+                    views_label = views_div.get_attribute('aria-label')
+
+                    views_count_match = re.search(r'(\d+) views', views_label)
+                    views_count = views_count_match.group(1) if views_count_match else "N/A"
+                    tweet_details['views_count'] = views_count
+
+                    print("Number of views:", views_count)
+
+                except Exception as e:
+                    print("Error finding the views information:", e)
+
+                scraped_tweet_data.append(tweet_details)
+        
+        return scraped_tweet_data
+
+    # Load tweet URLs and names from your JSON file
+    file_path = 'twitter_profiles_data.json'
+    tweet_data = []
+
+    with open(file_path, 'r') as file:
+        profiles_data = json.load(file)
+        for profile in profiles_data:
+            if 'tweet_links' in profile:
+                tweet_info = {
+                    "name": profile["name"],
+                    "tweet_links": profile["tweet_links"]
+                }
+                tweet_data.append(tweet_info)            
+                    
+    if __name__ == "__main__":
+        PATH = r"/Users/guolingjun/Desktop/HYP/geckodriver"
+        driver = webdriver.Firefox(executable_path=PATH)
+        #driver = webdriver.Firefox()
+        
+        # Go to Twitter's login page
+        driver.get("https://twitter.com/login")
+        time.sleep(3)
+
+        username_input = driver.find_element(By.NAME, 'text')
+        username_input.send_keys('123')
+        
+        next_button = driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]/ancestor::div[@role='button']")
+        next_button.click()
+
+        # Wait for the password input field to appear
+        time.sleep(3)
+
+        # Find the password input field and enter your password
+        password_input = driver.find_element(By.NAME, 'password')
+        password_input.send_keys('123')
+
+        # Find and click the 'Log in' button
+        login_button = driver.find_element(By.XPATH, "//span[contains(text(), 'Log in')]/ancestor::div[@role='button']")
+        login_button.click()
+
+        time.sleep(5)
+        scraped_data = scrape_tweet_details(driver, tweet_data)
+
+        # Save the scraped data to a file
+        with open('scraped_tweet_details.json', 'w', encoding='utf-8') as f:
+            json.dump(scraped_data, f, ensure_ascii=False, indent=4)
+
+        driver.quit()
+
+
+#AUTOMATION
+schedule.every().day.at("07:00").do(twitter_phase1()) 
+schedule.every().day.at("07:00").do(twitter_phase1()) 
+
+schedule.every().day.at("19:00").do(twitter_phase2()) 
+schedule.every().day.at("19:00").do(twitter_phase2()) 
+
+while True:
+    schedule.run_pending()
+    time.sleep(60)
+
