@@ -1,0 +1,11 @@
+import schedule
+import time
+
+from phase1_script import get_profile_data
+from phase2_script import get_video_stats
+
+def scrape_phase1():
+    profile_urls = ["https://example.com/user1", "https://example.com/user2", ...]
+
+    for profile_url in profile_urls:
+        profile_data = get_profile_data(profile_url)
