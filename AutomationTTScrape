@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import schedule
 
 ###
-PHASE 1 HERE
+#PHASE 1 HERE
 ###
 def phase_1():
     SCROLL_PAUSE_TIME = 15  
@@ -71,7 +71,7 @@ def phase_1():
         print(index)
 
 ###
-PHASE 2 HERE
+#PHASE 2 HERE
 ###
 def phase_2():
     # Define cookies and headers
