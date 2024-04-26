@@ -1,0 +1,66 @@
+from selenium import webdriver
+import time
+from scrapy import Selector
+import json
+import csv
+
+def TTphase_1():
+    SCROLL_PAUSE_TIME = 15  
+    driver = webdriver.Firefox()
+
+    def get_profile_data(url):
+        driver.get(url)
+        time.sleep(SCROLL_PAUSE_TIME)
+
+        videos_list = None
+
+        str = "const origOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(t,e){this.addEventListener(\"load\",function(){var t;4===this.readyState&&isVideoFetch(e)&&(pushVideoIDs(t=JSON.parse(this.responseText)),checkAutoScroller(t))}),origOpen.apply(this,arguments)};const autoScroller=setInterval(function(){window.scrollTo(0,document.body.scrollHeight)},1e3);function isVideoFetch(t){return/\/api\/post\/item_list\//.test(t)}function pushVideoIDs(t){t.itemList.forEach(t=>{})}function checkAutoScroller(t){t.hasMore||clearInterval(autoScroller)}"
+
+        time.sleep(5)
+        driver.execute_script(str)
+        time.sleep(SCROLL_PAUSE_TIME)
+        response = Selector(text=driver.page_source)
+
+        videos_list = response.css('[data-e2e="user-post-item-desc"] a::attr(href)').getall()
+        videos_list = [url for url in videos_list if 'https' in url]
+
+        title = response.css('[data-e2e="user-title"] ::text').get()
+        sub_title = response.css('[data-e2e="user-subtitle"] ::text').get()
+        following = response.css('[data-e2e="following-count"] ::text').get()
+        followers = response.css('[data-e2e="followers-count"] ::text').get()
+        likes = response.css('[data-e2e="likes-count"] ::text').get()
+        user_bio = response.css('[data-e2e="user-bio"] ::text').get()
+        verified = "verified" if bool(response.css('[data-e2e="user-title"] svg')) else "not verified"
+        link = response.css('span.css-847r2g-SpanLink.eht0fek2 ::text').get()
+
+        return {
+            "title": title,
+            "url": url,
+            "sub_title": sub_title,
+            "following": following,
+            "verified": verified,
+            "followers": followers,
+            "likes": likes,
+            "user_bio": user_bio,
+            "link": link,
+            "videos_list": videos_list,
+            "total_videos": len(videos_list),
+        }
+
+    profile_urls = []
+    with open('input.csv', 'r', newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            url = row['URLs']
+            profile_urls.append(url)
+
+    main_data = []
+
+    for index, profile_url in enumerate(profile_urls):
+        profile_data = get_profile_data(profile_url)
+        main_data.append(profile_data)
+        with open('output.json', 'w') as json_file: 
+            json.dump(main_data, json_file)
+        print(index)
+
+
