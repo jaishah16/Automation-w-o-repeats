@@ -4,7 +4,7 @@ from scrapy import Selector
 import json
 import csv
 
-def TTphase_1():
+def phase_1():
     SCROLL_PAUSE_TIME = 15  
     driver = webdriver.Firefox()
 
