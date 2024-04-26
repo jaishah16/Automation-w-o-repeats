@@ -1,8 +1,131 @@
-schedule.every().day.at("07:00").do(phase_1()) 
-schedule.every().day.at("07:00").do(phase_2()) 
+import json
+import time
+import argparse
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+from webdriver_manager.chrome import ChromeDriverManager
+import re
+import random
 
-schedule.every().day.at("19:00").do(phase_1()) 
-schedule.every().day.at("19:00").do(phase_2)) 
+import schedule
+
+define meta_scrape():
+    # Define a function to separate caption from hashtags
+    def separate_caption_from_hashtags(text):
+        # Define a regular expression pattern to match hashtags
+        hashtag_pattern = r'#\w+'
+        hashtags = re.findall(hashtag_pattern, text)
+        caption = re.sub(hashtag_pattern, '', text)
+        return caption, hashtags
+
+
+    def scrape_instagram_data():
+        # Create the parser
+        parser = argparse.ArgumentParser(description='Process some integers.')
+
+        # Add the arguments
+        parser.add_argument('FileName', metavar='filename', type=str, help='the name of the file to process')
+
+        # Parse the arguments
+        args = parser.parse_args()
+
+        # File path to the list of creators we want to scrape
+        file_name = args.FileName
+        print(file_name)
+        parse = file_name.split("_")
+        brand = parse[1][:-5]  # remove .xlsx
+        print('Brand:', brand)
+        print('File Name:', file_name)
+
+        # Path to your excel sheets
+        creators = pd.read_excel("/Users/justinsong/hyp/scraper/meta/" + file_name)
+
+        data = []
+        # Path to geckodriver if you didn't install gecko to the C:/Windows (for Windows user)!
+        # PATH = r"/Users/guolingjun/Desktop/HYP/geckodriver"
+        # driver = webdriver.Firefox(executable_path = PATH)
+        driver = webdriver.Firefox()
+
+        driver.get("https://www.instagram.com/")
+
+        # wait for the instagram page to load
+        time.sleep(7)
+
+        # Once loaded, look for username and password fields
+        username = driver.find_element(By.CSS_SELECTOR, "input[name='username']")
+        password = driver.find_element(By.CSS_SELECTOR, "input[name='password']")
+
+        # Clear fields incase there was an autosave option
+        username.clear()
+        password.clear()
+
+        # Dummy login
+        username.send_keys("jsongscrp3")
+        password.send_keys("Asdgi3526!")
+        login = driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+
+        # A pop-up will show up asking to save your login, click not now
+        time.sleep(7)
+        notnow = driver.find_element(By.XPATH, "//div[contains(text(), 'Not now')]").click()
+        # Turn on notifications
+        time.sleep(5)
+        notnow2 = driver.find_element(By.XPATH, "//button[contains(text(), 'Not Now')]").click()
+        time.sleep(5)
+        brokenLinks = []
+
+        # Iterating through the list of creators
+        for index, creator in creators.iterrows():
+            influencer_data = {
+                "ig_username": [creator["Link to IG"]],
+                "name": [],
+                "title": [],
+                "bio": [],
+                "linktree": [],
+                "posts": {},
+            }
+
+            # Load the profile of a creator
+            # print("-----", influencer_data["ig_username"][0])
+            driver.get(influencer_data["ig_username"][0])
+            time.sleep(random.randint(5, 10))
+
+            # Get the profile information of the creator
+            try:
+                profileDescription = driver.find_element(By.XPATH,
+                                                          '//meta[@name="description"]').get_attribute('content')
+
+                # profileDescription is a string in format Follwers, Following, Posts
+                followers_pattern = r'([\d,]+)[KM]? Followers'
+                following_pattern = r'([\d,]+) Following'
+                posts_pattern = r'([\d,]+)[KM]? [Pp]osts'
+
+                # Use re.search to find the matches in the text
+                followers_match = re.search(followers_pattern, profileDescription)
+                following_match = re.search(following_pattern, profileDescription)
+                posts_match = re.search(posts_pattern, profileDescription)
+
+                influencer_data["ig_username"].append(followers_match.group())
+                influencer_data["ig_username"].append(following_match.group())
+                influencer_data["ig_username"].append(posts_match.group())
+
+                og_title = driver.find_element(By.XPATH,
+                                                '//meta[@property="og:title"]').get_attribute('content')
+                match = re.match(r"(.*) \(@(.*)\) • Instagram photos and videos", og_title)
+                if match:
+                    display_name = match.group(1)
+
+                # Add the extracted information to your influencer_data dictionary
+                influencer_data["name"].append(display_name.split(" | ")[0])
+                influencer_data["title"].append(display_name)
+
+                bio_element = driver.find_element(By.XPATH
+
+
+
+schedule.every().day.at("07:00").do(meta_scrape)
+schedule.every().day.at("19:00").do(meta_scrape)
 
 while True:
     schedule.run_pending()
