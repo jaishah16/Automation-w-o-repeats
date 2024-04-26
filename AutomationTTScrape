@@ -71,7 +71,7 @@ def phase_1():
         print(index)
 
 ###
-PHASE 1 HERE
+PHASE 2 HERE
 ###
 def phase_2():
     # Define cookies and headers
