@@ -27,7 +27,7 @@ def phase_1():
 
         videos_list = None
 
-        str = "const origOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(t,e){this.addEventListener(\"load\",function(){var t;4===this.readyState&&isVideoFetch(e)&&(pushVideoIDs(t=JSON.parse(this.responseText)),checkAutoScroller(t))}),origOpen.apply(this,arguments)};const autoScroller=setInterval(function(){window.scrollTo(0,document.body.scrollHeight)},1e3);function isVideoFetch(t){return/\/api\/post\/item_list\//.test(t)}function pushVideoIDs(t){t.itemList.forEach(t=>{})}function checkAutoScroller(t){t.hasMore||clearInterval(autoScroller)}"
+        str = "const origOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(t,e){this.addEventListener(\"load\",function(){var t;4===this.readyState&&isVideoFetch(e)&&(pushVideoIDs(t=JSON.parse(this.responseText)),checkAutoScroller(t))}),origOpen.apply(this,arguments)};const autoScroller=setInterval(function(){window.scrollTo(0,document.body.scrollHeight)},1e3);function isVideoFetch(t){return /\\/api\\/post\\/item_list\\//.test(t)}function pushVideoIDs(t){t.itemList.forEach(t=>{})}function checkAutoScroller(t){t.hasMore||clearInterval(autoScroller)}"
 
         time.sleep(5)
         driver.execute_script(str)
