@@ -11,7 +11,7 @@ import random
 
 import schedule
 
-define meta_scrape():
+def meta_scrape():
     # Define a function to separate caption from hashtags
     def separate_caption_from_hashtags(text):
         # Define a regular expression pattern to match hashtags
