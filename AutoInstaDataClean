@@ -72,8 +72,8 @@ def data_clean():
         return not_scraped
 
     # Define directories and files
-    data_dir = "./Data/" #### PUT YOUR OWN PATH
-    meta_so_far_file = "meta_so_far.csv" #### PUT YOUR OWN PATH
+    data_dir = "/Users/sanghunbyun/Desktop/hyp/meta_scrape/data"  #### PUT YOUR OWN PATH
+    meta_so_far_file = "/Users/sanghunbyun/Desktop/hyp/meta_scrape/data/meta_so_far.csv" #### PUT YOUR OWN PATH
     brands_files = ["B corp beauty creators.csv", "Kbeauty creators.csv"]
     classifications_file = "Amazon creators - Creators sorted.csv"
     output_non_scraped_file = "not_scraped_profiles.xlsx"
