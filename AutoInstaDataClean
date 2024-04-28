@@ -1,0 +1,123 @@
+import schedule
+import time
+
+import pandas as pd
+import numpy as np
+import json
+import os
+import re
+from functools import reduce
+
+def data_clean():
+    # Reading JSON files and processing creator information
+    def read_json(json_file):
+        with open(json_file, 'r') as file:
+            data = json.load(file)
+        creators = []
+        for json_segment in data:
+            if 'ig_username' in json_segment and json_segment['ig_username']:
+                creators.append({
+                    'IG_Link': json_segment['ig_username'][0],
+                    'Username': re.search(r'(?<=\.com/).*', json_segment['ig_username'][0]).group().split('/')[0],
+                    'Followers': json_segment['ig_username'][1],
+                    'Following': json_segment['ig_username'][2],
+                    'Posts': json_segment['ig_username'][3],
+                    'Name': json_segment.get('name', np.nan) if 'name' in json_segment else np.nan,
+                    'Title': json_segment.get('title', np.nan) if 'title' in json_segment else np.nan,
+                    'Bio': json_segment.get('bio', np.nan) if 'bio' in json_segment else np.nan,
+                    'Linktree': json_segment.get('linktree', np.nan) if 'linktree' in json_segment else np.nan,
+                    'JSON': json_file
+                })
+        return creators
+
+    # Processing post information
+    def process_post(json_segment):
+        posts_info = []
+        posts = json_segment.get('posts', {})
+        for post_url, post_data in posts.items():
+            post_info = {
+                'IG_Link': json_segment['ig_username'][0],
+                'Post_URL': post_url,
+                'Caption': post_data[3][1] if len(post_data) >= 5 else np.nan,
+                'Likes': post_data[0][1] if len(post_data) >= 5 else np.nan,
+                'Comments': post_data[1][1] if len(post_data) >= 5 else np.nan,
+                'Comments_String': '\n'.join(post_data[2][1]) if len(post_data) >= 5 else np.nan,
+                'Hashtags': ' '.join(post_data[4][1]) if len(post_data) >= 5 else np.nan
+            }
+            posts_info.append(post_info)
+        return posts_info
+
+    # Processing brands data
+    def process_brands(brands_file):
+        brands_data = pd.read_csv(brands_file)
+        brands_data['Username'] = brands_data['Link to IG'].str.extract(r'(?<=\.com/)(.*?)(?=/|$)')
+        return brands_data[['Brand', 'Username', 'Creator Name', 'Link to IG']].dropna().drop_duplicates()
+
+    # Processing classifications data
+    def process_classifications(classifications_file):
+        classifications_data = pd.read_csv(classifications_file)
+        classifications_data['Username'] = classifications_data['Instagram'].str.extract(r'(?<=\.com/)(.*?)(?=/|$)')
+        combined_classification = classifications_data.groupby('Username')['Instagram classification'].apply(', '.join)
+        classifications_data['Combined Classification'] = classifications_data['Username'].map(combined_classification)
+        return classifications_data[['Username', 'Combined Classification', 'IG scraping (ML intern)']].dropna().drop_duplicates()
+
+    # Merging data and handling non-scraped profiles
+    def merge_data_and_handle_non_scraped(meta_data, creators_sorted, combined_brands):
+        meta_data = pd.concat([meta_data, creators_sorted[['Username', 'Brand']].drop_duplicates().assign(Brand='Amazon')])
+        not_scraped = {}
+        not_scraped['Amazon Tiktok'] = creators_sorted[creators_sorted['Username'].isin(meta_data[meta_data['IG scraping (ML intern)'].isna()]['Username'])]
+        not_scraped['Other Tiktok'] = meta_data[meta_data['IG scraping (ML intern)'].isna()]
+        not_scraped['Amazon Instagram'] = combined_brands[combined_brands['Username'].isin(meta_data[meta_data['IG scraping (ML intern)'].isna()]['Username'])]
+        not_scraped['Other Instagram'] = meta_data[meta_data['IG scraping (ML intern)'].isna()]
+        return not_scraped
+
+    # Define directories and files
+    data_dir = "./Data/" #### PUT YOUR OWN PATH
+    meta_so_far_file = "meta_so_far.csv" #### PUT YOUR OWN PATH
+    brands_files = ["B corp beauty creators.csv", "Kbeauty creators.csv"]
+    classifications_file = "Amazon creators - Creators sorted.csv"
+    output_non_scraped_file = "not_scraped_profiles.xlsx"
+
+    # Process JSON files
+    json_files = [os.path.join(data_dir, file) for file in os.listdir(data_dir) if file.endswith('.json')]
+    creators_info = reduce(lambda x, y: x + y, [read_json(file) for file in json_files])
+
+    # Process post data
+    post_info = reduce(lambda x, y: x + y, [process_post(json.load(open(file))) for file in json_files])
+
+    # Combine creator and post data
+    meta_data = pd.DataFrame(creators_info).merge(pd.DataFrame(post_info), on='IG_Link', how='left')
+
+    # Read existing meta data and process classifications
+    existing_meta_data = pd.read_csv(meta_so_far_file)
+    creators_sorted = process_classifications(classifications_file)
+
+    # Add classifications to meta data
+    meta_data = pd.concat([meta_data, creators_sorted[['Username', 'Combined Classification', 'IG scraping (ML intern)']].dropna().drop_duplicates()])
+    meta_data.drop_duplicates(inplace=True)
+
+    # Process brands data
+    brands_data = pd.concat([process_brands(file) for file in brands_files]).groupby('Username')['Brand'].apply(', '.join).reset_index()
+
+    # Add brands to meta data
+    meta_data = meta_data.merge(brands_data, on='Username', how='left')
+
+    # Label Amazon creators
+    creators_sorted['Brand'] = 'Amazon'
+    meta_data = pd.concat([meta_data, creators_sorted[['Username', 'Brand']].drop_duplicates()])
+
+    # Handle non-scraped profiles
+    not_scraped_profiles = merge_data_and_handle_non_scraped(existing_meta_data, creators_sorted, brands_data)
+
+    # Write data to files
+    meta_data.to_csv(meta_so_far_file, index=False)
+    with pd.ExcelWriter(output_non_scraped_file) as writer:
+        for sheet_name, data in not_scraped_profiles.items():
+            data.to_excel(writer, sheet_name=sheet_name, index=False)
+
+schedule.every().day.at("08:00").do(data_clean())
+schedule.every().day.at("20:00").do(data_clean())
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)
