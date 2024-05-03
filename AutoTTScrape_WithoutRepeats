@@ -4,6 +4,7 @@ import schedule
 ###
 #PHASE 1 HERE
 ###
+# way to keep fashion batch separate: way to keep some of the data together with some notation. 
 
 def phase_1():
     from selenium import webdriver
