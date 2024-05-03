@@ -4,11 +4,6 @@ import schedule
 ###
 #PHASE 1 HERE
 ###
-from selenium import webdriver
-import time
-from scrapy import Selector
-import json
-import csv
 
 def phase_1():
     from selenium import webdriver
