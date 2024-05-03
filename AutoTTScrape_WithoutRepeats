@@ -12,6 +12,21 @@ def phase_1():
     import json
     import csv
 
+    #NEW CHANGE
+    last_scraping_date = datetime.now() - timedelta(hours=12)
+
+    with open('input.csv', 'r', newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            url = row['URLs']
+            # Check if the URL is already in the profile_data
+            if any(profile['url'] == url and profile['date_added'] >= last_scraping_date.strftime("%Y-%m-%d") for profile in profile_data):
+                continue
+            profile = get_profile_data(url)
+            profile_data.append(profile)
+
+    #NEW CHANGE ENDS HERE
+
     SCROLL_PAUSE_TIME = 15
     #PATH = r"/Users/guolingjun/Desktop/HYP/geckodriver"
     #driver = webdriver.Firefox(executable_path=PATH)
