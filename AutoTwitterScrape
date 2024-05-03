@@ -1,21 +1,20 @@
 import time
-import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service
-from webdriver_manager.firefox import GeckoDriverManager
-import argparse
-import json
-import re
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-
-from selenium.webdriver.common.keys import Keys
 import schedule
-
 
 #PHASE 1
 def twitter_phase1:
+    import time
+    import pandas as pd
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.firefox.service import Service
+    from webdriver_manager.firefox import GeckoDriverManager
+    import argparse
+    import json
+    import re
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
     def scrape_profile(driver, profile_url):
         try:
             # Navigate to the Twitter profile page
@@ -182,9 +181,37 @@ def twitter_phase1:
         login_button = driver.find_element(By.XPATH, "//span[contains(text(), 'Log in')]/ancestor::div[@role='button']")
         login_button.click()
 
+        time.sleep(5)
+        profiles_df = pd.read_csv(args.FileName)
+        profiles_data = []
+
+        for profile_url in profiles_df['URLs']:
+            profile_data = scrape_profile(driver, profile_url)
+            if profile_data:
+                profiles_data.append(profile_data)
+
+        driver.quit()
+
+        # Save the scraped data to a JSON file
+        with open('twitter_profiles_data.json', 'w') as f:
+            json.dump(profiles_data, f, indent=4)
+
+        print("Scraping completed.")
+
 #PHASE 2
 
 def twitter_phase2:
+    import time
+    import json
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.firefox.service import Service
+    from webdriver_manager.firefox import GeckoDriverManager
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import re
+    from selenium.webdriver.common.keys import Keys
+    
     def scrape_tweet_details(driver, tweet_data):
         wait = WebDriverWait(driver, 10)
         scraped_tweet_data = []
@@ -351,10 +378,10 @@ def twitter_phase2:
 
 #AUTOMATION
 schedule.every().day.at("07:00").do(twitter_phase1()) 
-schedule.every().day.at("07:00").do(twitter_phase1()) 
+schedule.every().day.at("08:00").do(twitter_phase1()) 
 
 schedule.every().day.at("19:00").do(twitter_phase2()) 
-schedule.every().day.at("19:00").do(twitter_phase2()) 
+schedule.every().day.at("20:00").do(twitter_phase2()) 
 
 while True:
     schedule.run_pending()
