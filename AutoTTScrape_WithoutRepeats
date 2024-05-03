@@ -42,6 +42,7 @@ def phase_1():
         verified = "verified" if bool(response.css('[data-e2e="user-title"] svg')) else "not verified"
         link = response.css('span.css-847r2g-SpanLink.eht0fek2 ::text').get()
 
+#NEW CHANGE: new column data_added to record the date & time data was added 
         return {
             "title": title,
             "url": url,
@@ -54,6 +55,7 @@ def phase_1():
             "link": link,
             "videos_list": videos_list,
             "total_vidoes": len(videos_list),
+            "date_added": datetime.now().strftime("%Y-%m-%d")  
         }
 
     profile_urls = []
