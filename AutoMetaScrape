@@ -3,7 +3,7 @@ import schedule
 import time
 
 
-define meta_scrape():
+def meta_scrape():
     import json
     import time
     import argparse
