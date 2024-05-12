@@ -71,6 +71,19 @@ def phase_1():
         with open('output.json', 'w') as json_file: json.dump(main_data, json_file)
         print(index)
 
+    with open('output.json', 'r') as file:
+        profile_data = json.load(file)
+    #record the time when the scraper is run
+    current_date = datetime.utcnow().strftime('%Y-%m-%d')
+
+    for profile in profile_data:
+        if 'creation_date' not in profile:
+            profile['creation_date'] = current_date
+
+    with open('output.json', 'w') as file:
+        json.dump(profile_data, file)
+
+
 
 ###
 #PHASE 2 HERE
@@ -206,6 +219,14 @@ def phase_2():
         video_details = get_video_stats(profile['videos_list'])
         profile['video_details'] = video_details
         with open('outputfinal.json', 'w') as json_file: json.dump(profile_data, json_file)
+
+#NEW CHANGES FROM HERE
+    with open('output.json', 'r') as file:
+        profile_data = json.load(file)
+
+    #record when the scraper is run
+    current_date = datetime.utcnow().strftime('%Y-%m-%d')
+
 
 
 schedule.every().day.at("07:00").do(phase_1) 
