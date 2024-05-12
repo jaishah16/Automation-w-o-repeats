@@ -1,0 +1,219 @@
+import time
+import schedule
+
+###
+#PHASE 1 HERE
+###
+
+def phase_1():
+    from selenium import webdriver
+    import time
+    from scrapy import Selector
+    import json
+    import csv
+
+    SCROLL_PAUSE_TIME = 15
+    #PATH = r"/Users/guolingjun/Desktop/HYP/geckodriver"
+    #driver = webdriver.Firefox(executable_path=PATH)
+    driver = webdriver.Firefox()
+
+    def get_profile_data(url):
+        driver.get(url)
+        time.sleep(SCROLL_PAUSE_TIME)
+
+        videos_list = None
+
+        str = "const origOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(t,e){this.addEventListener(\"load\",function(){var t;4===this.readyState&&isVideoFetch(e)&&(pushVideoIDs(t=JSON.parse(this.responseText)),checkAutoScroller(t))}),origOpen.apply(this,arguments)};const autoScroller=setInterval(function(){window.scrollTo(0,document.body.scrollHeight)},1e3);function isVideoFetch(t){return/\/api\/post\/item_list\//.test(t)}function pushVideoIDs(t){t.itemList.forEach(t=>{})}function checkAutoScroller(t){t.hasMore||clearInterval(autoScroller)}"
+
+        time.sleep(5)
+        driver.execute_script(str)
+        time.sleep(SCROLL_PAUSE_TIME)
+        response = Selector(text=driver.page_source)
+
+        videos_list = response.css('[data-e2e="user-post-item-desc"] a::attr(href)').getall()
+        videos_list = [url for url in videos_list if 'https' in url]
+        
+        title = response.css('[data-e2e="user-title"] ::text').get()
+        sub_title = response.css('[data-e2e="user-subtitle"] ::text').get()
+        following = response.css('[data-e2e="following-count"] ::text').get()
+        followers = response.css('[data-e2e="followers-count"] ::text').get()
+        likes = response.css('[data-e2e="likes-count"] ::text').get()
+        user_bio = response.css('[data-e2e="user-bio"] ::text').get()
+        verified = "verified" if bool(response.css('[data-e2e="user-title"] svg')) else "not verified"
+        link = response.css('span.css-847r2g-SpanLink.eht0fek2 ::text').get()
+
+        return {
+            "title": title,
+            "url": url,
+            "sub_title": sub_title,
+            "following": following,
+            "verified": verified,
+            "followers": followers,
+            "likes": likes,
+            "user_bio": user_bio,
+            "link": link,
+            "videos_list": videos_list,
+            "total_vidoes": len(videos_list),
+        }
+
+    profile_urls = []
+    with open('input.csv', 'r', newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            url = row['URLs']
+            profile_urls.append(url)
+
+    main_data = []
+
+    for index, profile_url in enumerate(profile_urls):
+        profile_data = get_profile_data(profile_url)
+        main_data.append(profile_data)
+        with open('output.json', 'w') as json_file: json.dump(main_data, json_file)
+        print(index)
+
+
+###
+#PHASE 2 HERE
+###
+
+def phase_2():
+    import time
+    from scrapy import Selector
+    import requests
+    import json
+    from datetime import datetime, timezone
+
+    # Cookies, generate these through curl! Video linked in drive
+    cookies = {
+        'tt_chain_token': 'p4Y3pQQXlljXj/aNR92T0g==',
+        'tiktok_webapp_theme': 'light',
+        'odin_tt': 'af597dadca65f5e25cd5e17851d7afc592783c7fcecb928a38162970029173effb143cec4ebab8425585a9d262165080a2ce77881b8297dbd274b572d63701b807277e79338f6e538fc870a3c331227f',
+        'ttwid': '1%7Cit6LEsZ0QnYg2nzXdcKk7BP7GW_BhjZdFNN3LYcc99s%7C1702645029%7C11c20e2b073f7f775cec26373104f5e1e5b21691bfa46cccc3e7eb58ecb60d1c',
+        'msToken': 'oWz6-lEjBLOSWov77V03dZLCt7LL_kw4_pElqWdKzYW936UnwSBY8NUc95lMEZ5vMWRUFvKUIxQ-ZiDzxefXsLjt4V2OZPy94CCKyHvQkmunYrHxwbM5fDRlGWIUg3XE5PE-PdU=',
+        'tt_csrf_token': 'pAV3BIzP-b9zBu0PygCC8cac51riivcmHPLE',
+        'passport_csrf_token': '69dda2cf0e38e30143c5fbd7d00caff2',
+        'passport_csrf_token_default': '69dda2cf0e38e30143c5fbd7d00caff2',
+        'bm_mi': '02BE7129E3879197BD74C9FABF35DDBF~YAAQFpqwtoOkX16NAQAAdUHlXxYxegeFeCpr3TBmq9wVDx4s/bZCmumFakOM48pYcy+u6OKQ7oXuWpWiaTf3tzykD6sA9AOzHSMKwmpcxY5KWjsL5jq5RMOWqRPepKSgvCU6cSgNN+1A+/lsKZL1dWVYaVfLHD1rQCVrsfEkydX4EfMD9zrYb//f9bqjUFf8Fry9RupVGZdnlg27xJef3GuIPlxU9dPoqpyDy0p7DiWzeNVePxuYxhNtIMjTWm1pJ+eYyth5boq7B/bKmspOGdu+rawU5SJB5f+jqqBy7WIH3bWtWkPqyO+BIBcD~1',
+        'bm_sv': 'F498AF2966B0AD5DDFB18ECA730026C5~YAAQFpqwtoSkX16NAQAAdUHlXxZJjOqqEKFlhgfEs1+mnPu9RLWIdw53fin/Ehz8itmBSAlroV0w6fK/kufrPp1YjqcniVJS4jAn4InjN3qoXFzYAMPiOL0AYB//UanjTbCF9NINNScct+tIV7uPnNaIcG52c0KApIrOiaxijjAzwsYu5Qw7M4ZIu9srX7FSldTA1yk52pIoQDfxOTN/4NBkZuVqZjM6TMhbal2fetbOw+HsNVDW5jwHvgPMvKk5~1',
+        'ak_bmsc': '4959182BFEA6D1E6FE12E8EDD3F30004~000000000000000000000000000000~YAAQFpqwtpKkX16NAQAA0YblXxbuGFuDB2IguaXXCq1CfPdUEeecXQV4cvhheEfpmKvQ9QeB9VL4ham69THBRsZHJY7aZuIs2EHDSwm7OPsy+2Mmgx31wD14C5S1/Y679djTZQWf7N3ubiobnp9yzQQwrg3ZJykRZs4w59vUiOLAV9NM3jVzZ1MGlcAdDzEZSiKYGkdhrChliKVk5LY9mvrrcUMG33PxOGl7SY6CQwiJtkxBg00u+qWfxlqNJxX3TxznAgXb5QOd6ZeQTsUVktkkYeoMzIzrrLh9dsuHfxuaatwkOfezgY6e+34kV7ZQPF4bvBhxvNzox63tYn51vS2H0H6KCjQOkmGk0DVvCpx1tKS0HcC9qDiZpqZ1qnebKns+9O313NUwLOFYra97DsfNDd3N76j6ezC2AOs=',
+        'perf_feed_cache': '{%22expireTimestamp%22:1706882400000%2C%22itemIds%22:[%227322960513669811488%22%2C%227308072540189003041%22]}',
+        'msToken': 'zFsyrJ6m7a3XoH6CQHU0GaYrRkXLog9TGfIcNLpk4EyUYxKAbwYkuSzCjF6dlVs9mJr0z7HcHGbGkrjybphUYY4SV3WT86idP1fYc5ImfqZpdpov5Xv-n22oOLxSIDd9UuhvVRE=',
+    }
+
+    # Headers, generate these through curl! Video linked in drive
+    headers = {
+        'authority': 'www.tiktok.com',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-US,en;q=0.9',
+        'cache-control': 'max-age=0',
+        # 'cookie': 'tt_chain_token=p4Y3pQQXlljXj/aNR92T0g==; tiktok_webapp_theme=light; odin_tt=af597dadca65f5e25cd5e17851d7afc592783c7fcecb928a38162970029173effb143cec4ebab8425585a9d262165080a2ce77881b8297dbd274b572d63701b807277e79338f6e538fc870a3c331227f; ttwid=1%7Cit6LEsZ0QnYg2nzXdcKk7BP7GW_BhjZdFNN3LYcc99s%7C1702645029%7C11c20e2b073f7f775cec26373104f5e1e5b21691bfa46cccc3e7eb58ecb60d1c; msToken=oWz6-lEjBLOSWov77V03dZLCt7LL_kw4_pElqWdKzYW936UnwSBY8NUc95lMEZ5vMWRUFvKUIxQ-ZiDzxefXsLjt4V2OZPy94CCKyHvQkmunYrHxwbM5fDRlGWIUg3XE5PE-PdU=; tt_csrf_token=pAV3BIzP-b9zBu0PygCC8cac51riivcmHPLE; passport_csrf_token=69dda2cf0e38e30143c5fbd7d00caff2; passport_csrf_token_default=69dda2cf0e38e30143c5fbd7d00caff2; bm_mi=02BE7129E3879197BD74C9FABF35DDBF~YAAQFpqwtoOkX16NAQAAdUHlXxYxegeFeCpr3TBmq9wVDx4s/bZCmumFakOM48pYcy+u6OKQ7oXuWpWiaTf3tzykD6sA9AOzHSMKwmpcxY5KWjsL5jq5RMOWqRPepKSgvCU6cSgNN+1A+/lsKZL1dWVYaVfLHD1rQCVrsfEkydX4EfMD9zrYb//f9bqjUFf8Fry9RupVGZdnlg27xJef3GuIPlxU9dPoqpyDy0p7DiWzeNVePxuYxhNtIMjTWm1pJ+eYyth5boq7B/bKmspOGdu+rawU5SJB5f+jqqBy7WIH3bWtWkPqyO+BIBcD~1; bm_sv=F498AF2966B0AD5DDFB18ECA730026C5~YAAQFpqwtoSkX16NAQAAdUHlXxZJjOqqEKFlhgfEs1+mnPu9RLWIdw53fin/Ehz8itmBSAlroV0w6fK/kufrPp1YjqcniVJS4jAn4InjN3qoXFzYAMPiOL0AYB//UanjTbCF9NINNScct+tIV7uPnNaIcG52c0KApIrOiaxijjAzwsYu5Qw7M4ZIu9srX7FSldTA1yk52pIoQDfxOTN/4NBkZuVqZjM6TMhbal2fetbOw+HsNVDW5jwHvgPMvKk5~1; ak_bmsc=4959182BFEA6D1E6FE12E8EDD3F30004~000000000000000000000000000000~YAAQFpqwtpKkX16NAQAA0YblXxbuGFuDB2IguaXXCq1CfPdUEeecXQV4cvhheEfpmKvQ9QeB9VL4ham69THBRsZHJY7aZuIs2EHDSwm7OPsy+2Mmgx31wD14C5S1/Y679djTZQWf7N3ubiobnp9yzQQwrg3ZJykRZs4w59vUiOLAV9NM3jVzZ1MGlcAdDzEZSiKYGkdhrChliKVk5LY9mvrrcUMG33PxOGl7SY6CQwiJtkxBg00u+qWfxlqNJxX3TxznAgXb5QOd6ZeQTsUVktkkYeoMzIzrrLh9dsuHfxuaatwkOfezgY6e+34kV7ZQPF4bvBhxvNzox63tYn51vS2H0H6KCjQOkmGk0DVvCpx1tKS0HcC9qDiZpqZ1qnebKns+9O313NUwLOFYra97DsfNDd3N76j6ezC2AOs=; perf_feed_cache={%22expireTimestamp%22:1706882400000%2C%22itemIds%22:[%227322960513669811488%22%2C%227308072540189003041%22]}; msToken=zFsyrJ6m7a3XoH6CQHU0GaYrRkXLog9TGfIcNLpk4EyUYxKAbwYkuSzCjF6dlVs9mJr0z7HcHGbGkrjybphUYY4SV3WT86idP1fYc5ImfqZpdpov5Xv-n22oOLxSIDd9UuhvVRE=',
+        'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    }
+
+    # A helper function to extract the date of a tiktok post
+    def get_date(tiktok_url):
+        # Extract the video ID from the TikTok URL by splitting on "/video/" and "?".
+        vid_id = tiktok_url.split("/video/")[1].split("?")[0]
+
+        # Convert the video ID to binary. The 'bin' function returns a string that starts with '0b'.
+        # We slice the first 33 characters to include the '0b' prefix and the first 31 bits of the video ID.
+        as_binary = bin(int(vid_id))
+        first_31_char = as_binary[:33]
+
+        # Convert the first 31 bits back to an integer. This represents a timestamp in seconds.
+        timestamp = int(first_31_char, 2)
+
+        # Convert the timestamp to a datetime object in UTC.
+        date_object = datetime.fromtimestamp(timestamp, timezone.utc)
+        # Format the datetime object as a string in the format "Day, DD Month YYYY HH:MM:SS (UTC)".
+        human_date_format = date_object.strftime("%a, %d %b %Y %H:%M:%S (UTC)")
+        # Alternatively, the date can be formatted as "YYYY-MM-DD" using the following line:
+        # Check out the full list of format codes here: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
+        # human_date_format = date_object.strftime("%Y-%m-%d")
+
+        return human_date_format
+
+    # Scrape stats per video, currently set to the first 100
+    def get_video_stats(videos_list):
+        rows = []
+        for video in videos_list[:100]:
+            try:
+                response = requests.get(video, cookies=cookies, headers=headers)
+                s = Selector(text=response.text)
+                user_id = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('uniqueId":"(.*?)",')
+                bookmark_count = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('"collectCount":"(.*?)"')
+                captions = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first(r'(?<=")desc":"(.*?)"(?=,)')
+                comment_count = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('commentCount":(.*?),')
+                like_count = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('diggCount"(.*?),')
+                play_count = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('playCount"(.*?),')
+                location = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('"locationCreated":"(.*?)"')
+                share_count = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('shareCount":(.*?),')
+                date = get_date(video)
+                eligible_tag = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('"bc_disclosure_tag_ecommerce_us":"(.*?)"')
+                patnership_tag = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('bc_new_disclosure":"(.*?)"')
+                playUrl = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first('playUrl":"(.*?)"')
+                music_title_pattern = r'"music":\{[^}]*?"title":"(.*?)"'
+                music_title = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first(music_title_pattern)
+                music_author_pattern = r'"music":\{[^}]*?"authorName":"(.*?)"'
+                authorName = s.css('#__UNIVERSAL_DATA_FOR_REHYDRATION__::text').re_first(music_author_pattern)
+                # comments = To be implemented
+
+                row = {
+                    "url": video,
+                    "name": user_id,
+                    "bookmark_count": bookmark_count,
+                    "captions": captions,
+                    "comment_count": comment_count,
+                    "like_count": like_count,
+                    "play_count": play_count,
+                    "location": location,
+                    "share_count": share_count,
+                    "date": date,
+                    "eligible_tag": eligible_tag,
+                    "patnership_tag": patnership_tag,
+                    "playUrl": playUrl,
+                    "music_title": music_title,
+                    "authorName": authorName
+                }
+                with open('log.json', 'w') as json_file: json.dump(row, json_file)
+                print('#####################')
+                print(row)
+                print('#####################')
+                rows.append(row)
+                # Dont change this, it's to prevent tiktok from realizing we are scraping
+                time.sleep(8)
+            except:
+                print("):")
+                pass
+        return rows
+
+    # Read in the output.json file containing profiles
+    with open('output.json', 'r') as file:
+        profile_data = json.load(file)
+
+    # Iterate through the profiles and get the video lists, then output in json file
+    for profile in profile_data:
+        if profile.get('video_details'):
+            continue
+        video_details = get_video_stats(profile['videos_list'])
+        profile['video_details'] = video_details
+        with open('outputfinal.json', 'w') as json_file: json.dump(profile_data, json_file)
+
+
+schedule.every().day.at("07:00").do(phase_1) 
+schedule.every().day.at("08:00").do(phase_2) 
+
+schedule.every().day.at("19:00").do(phase_1) 
+schedule.every().day.at("20:00").do(phase_2) 
+
+while True:
+    schedule.run_pending()
+    time.sleep(60)
