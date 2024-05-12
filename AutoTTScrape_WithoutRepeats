@@ -4,7 +4,6 @@ import schedule
 ###
 #PHASE 1 HERE
 ###
-# way to keep fashion batch separate: way to keep some of the data together with some notation. 
 
 def phase_1():
     from selenium import webdriver
@@ -12,19 +11,7 @@ def phase_1():
     from scrapy import Selector
     import json
     import csv
-
-    #NEW CHANGE
-    last_scraping_date = datetime.now() - timedelta(hours=12)
-
-    with open('input.csv', 'r', newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            url = row['URLs']
-            # Check if the URL is already in the profile_data
-            if any(profile['url'] == url and profile['date_added'] >= last_scraping_date.strftime("%Y-%m-%d") for profile in profile_data):
-                continue
-            profile = get_profile_data(url)
-            profile_data.append(profile)
+    import datetime
 
 
     SCROLL_PAUSE_TIME = 15
@@ -57,7 +44,6 @@ def phase_1():
         verified = "verified" if bool(response.css('[data-e2e="user-title"] svg')) else "not verified"
         link = response.css('span.css-847r2g-SpanLink.eht0fek2 ::text').get()
 
-#NEW CHANGE: new column data_added to record the date & time data was added 
         return {
             "title": title,
             "url": url,
@@ -70,7 +56,6 @@ def phase_1():
             "link": link,
             "videos_list": videos_list,
             "total_vidoes": len(videos_list),
-            "date_added": datetime.now().strftime("%Y-%m-%d")  
         }
 
     profile_urls = []
@@ -88,6 +73,17 @@ def phase_1():
         with open('output.json', 'w') as json_file: json.dump(main_data, json_file)
         print(index)
 
+#NEW CHANGES FROM HERE
+    #record when the current date & time
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    # Add the current date to the profile data
+    profile_data['scraping_date'] = current_date
+
+    # Write the updated profile data to the output JSON file
+    with open('output.json', 'w') as json_file:
+        json.dump(profile_data, json_file)
+#END CHANGES
 
 ###
 #PHASE 2 HERE
@@ -99,6 +95,12 @@ def phase_2():
     import requests
     import json
     from datetime import datetime, timezone
+
+#NEW CHANGES FROM HERE
+    # Read the last scraping date from the output JSON file
+    with open('output.json', 'r') as json_file:
+        last_scraping_date = json.load(json_file)['scraping_date']
+#END CHANGES
 
     # Cookies, generate these through curl! Video linked in drive
     cookies = {
