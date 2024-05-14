@@ -2,7 +2,7 @@ import time
 import schedule
 
 #PHASE 1
-def twitter_phase1:
+def twitter_phase1():
     import time
     import pandas as pd
     from selenium import webdriver
