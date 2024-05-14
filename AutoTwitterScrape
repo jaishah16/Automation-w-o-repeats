@@ -200,7 +200,7 @@ def twitter_phase1():
 
 #PHASE 2
 
-def twitter_phase2:
+def twitter_phase2():
     import time
     import json
     from selenium import webdriver
