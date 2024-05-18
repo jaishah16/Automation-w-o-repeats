@@ -67,6 +67,9 @@ def phase_1():
         for row in reader:
             url = row['URLs']
             added_date = row['Added_Date']  # NEW CHANGE: Assuming 'Added_Date' is the column name
+            if url in profile_urls:
+            continue
+            else:
             profile_urls.append(url)
             added_dates.append(datetime.strptime(added_date, "%Y-%m-%d"))  # NEW CHANGE: Convert string to datetime
 
